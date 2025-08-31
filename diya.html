@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Diya Collection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .diya-container {
+            filter: drop-shadow(0 0 0 rgba(255, 165, 0, 0));
+            transition: filter 0.5s ease;
+        }
+        
+        .diya-glow {
+            filter: drop-shadow(0 0 30px rgba(255, 165, 0, 0.8)) 
+                    drop-shadow(0 0 60px rgba(255, 140, 0, 0.6))
+                    drop-shadow(0 0 100px rgba(255, 100, 0, 0.4));
+        }
+        
+        .small-diya-glow {
+            filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.7)) 
+                    drop-shadow(0 0 40px rgba(255, 140, 0, 0.5));
+        }
+        
+        .flame {
+            opacity: 0;
+            transform-origin: center bottom;
+        }
+        
+        .flame-visible {
+            opacity: 1;
+        }
+        
+        .spark {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #ffaa00;
+            border-radius: 50%;
+            opacity: 0;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { transform: scale(1) rotate(-1deg); }
+            25% { transform: scale(1.05) rotate(1deg); }
+            50% { transform: scale(0.98) rotate(-0.5deg); }
+            75% { transform: scale(1.02) rotate(0.8deg); }
+        }
+        
+        .flame-animation {
+            animation: flicker 2s ease-in-out infinite;
+        }
+        
+        .glow-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 165, 0, 0.3);
+            opacity: 0;
+        }
+        
+        .surrounding-diya {
+            position: absolute;
+            cursor: pointer;
+            opacity: 0;
+            transform: scale(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .surrounding-diya:hover {
+            transform: scale(1.1);
+        }
+        
+        .completion-glow {
+            filter: drop-shadow(0 0 50px rgba(255, 215, 0, 1)) 
+                    drop-shadow(0 0 100px rgba(255, 165, 0, 0.8))
+                    drop-shadow(0 0 150px rgba(255, 100, 0, 0.6));
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+    
+    <!-- Background particles for ambiance -->
+    <div id="particles" class="absolute inset-0 pointer-events-none"></div>
+    
+    <!-- Glow rings for lighting effect -->
+    <div id="glowRings" class="absolute inset-0 pointer-events-none"></div>
+    
+    <!-- Diyas container -->
+    <div id="diyasContainer" class="relative">
+        
+        <!-- Main diya container -->
+        <div id="diyaContainer" class="relative diya-container opacity-0">
+            <!-- SVG Main Diya -->
+            <svg width="200" height="200" viewBox="0 0 200 200" class="relative z-10">
+                <!-- Diya base -->
+                <ellipse cx="100" cy="140" rx="70" ry="35" fill="#8B4513" stroke="#654321" stroke-width="2"/>
+                
+                <!-- Diya bowl -->
+                <path d="M40 140 Q100 120 160 140 Q150 160 100 165 Q50 160 40 140" 
+                      fill="#CD853F" stroke="#8B4513" stroke-width="2"/>
+                
+                <!-- Oil surface -->
+                <ellipse id="oilSurface" cx="100" cy="145" rx="55" ry="15" fill="#FFA500" opacity="0.7"/>
+                
+                <!-- Wick -->
+                <rect x="98" y="130" width="4" height="15" fill="#2F4F4F" rx="2"/>
+                
+                <!-- Flame (initially hidden) -->
+                <g id="flame" class="flame">
+                    <!-- Outer flame -->
+                    <path d="M100 130 Q90 115 95 100 Q100 85 105 100 Q110 115 100 130" 
+                          fill="url(#flameGradient1)" opacity="0.9"/>
+                    <!-- Inner flame -->
+                    <path d="M100 125 Q93 115 97 105 Q100 95 103 105 Q107 115 100 125" 
+                          fill="url(#flameGradient2)"/>
+                    <!-- Flame core -->
+                    <ellipse cx="100" cy="115" rx="3" ry="8" fill="#FFFACD"/>
+                </g>
+                
+                <!-- Decorative patterns on diya -->
+                <circle cx="80" cy="150" r="3" fill="#DAA520"/>
+                <circle cx="120" cy="150" r="3" fill="#DAA520"/>
+                <circle cx="100" cy="155" r="2" fill="#DAA520"/>
+                
+                <!-- Gradient definitions -->
+                <defs>
+                    <radialGradient id="flameGradient1" cx="0.5" cy="0.8">
+                        <stop offset="0%" stop-color="#FFD700"/>
+                        <stop offset="50%" stop-color="#FF8C00"/>
+                        <stop offset="100%" stop-color="#FF4500"/>
+                    </radialGradient>
+                    <radialGradient id="flameGradient2" cx="0.5" cy="0.8">
+                        <stop offset="0%" stop-color="#FFFACD"/>
+                        <stop offset="70%" stop-color="#FFD700"/>
+                        <stop offset="100%" stop-color="#FFA500"/>
+                    </radialGradient>
+                </defs>
+            </svg>
+            
+            <!-- Main sparks container -->
+            <div id="sparks" class="absolute inset-0 pointer-events-none"></div>
+        </div>
+        
+        <!-- Surrounding Diyas (4 smaller diyas) -->
+        <div id="surroundingDiya1" class="surrounding-diya" style="top: -120px; left: 0px;">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+                <ellipse cx="60" cy="84" rx="42" ry="21" fill="#8B4513" stroke="#654321" stroke-width="1.5"/>
+                <path d="M24 84 Q60 72 96 84 Q90 96 60 99 Q30 96 24 84" fill="#CD853F" stroke="#8B4513" stroke-width="1.5"/>
+                <ellipse class="oil-surface" cx="60" cy="87" rx="33" ry="9" fill="#FFA500" opacity="0.7"/>
+                <rect x="58" y="78" width="3" height="9" fill="#2F4F4F" rx="1.5"/>
+                <g class="flame">
+                    <path d="M60 78 Q54 69 57 60 Q60 51 63 60 Q66 69 60 78" fill="url(#flameGradient1)" opacity="0.9"/>
+                    <path d="M60 75 Q56 69 58 63 Q60 57 62 63 Q64 69 60 75" fill="url(#flameGradient2)"/>
+                    <ellipse cx="60" cy="69" rx="2" ry="5" fill="#FFFACD"/>
+                </g>
+                <circle cx="48" cy="90" r="2" fill="#DAA520"/>
+                <circle cx="72" cy="90" r="2" fill="#DAA520"/>
+            </svg>
+            <div class="sparks-small absolute inset-0 pointer-events-none"></div>
+        </div>
+        
+        <div id="surroundingDiya2" class="surrounding-diya" style="top: 0px; left: 120px;">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+                <ellipse cx="60" cy="84" rx="42" ry="21" fill="#8B4513" stroke="#654321" stroke-width="1.5"/>
+                <path d="M24 84 Q60 72 96 84 Q90 96 60 99 Q30 96 24 84" fill="#CD853F" stroke="#8B4513" stroke-width="1.5"/>
+                <ellipse class="oil-surface" cx="60" cy="87" rx="33" ry="9" fill="#FFA500" opacity="0.7"/>
+                <rect x="58" y="78" width="3" height="9" fill="#2F4F4F" rx="1.5"/>
+                <g class="flame">
+                    <path d="M60 78 Q54 69 57 60 Q60 51 63 60 Q66 69 60 78" fill="url(#flameGradient1)" opacity="0.9"/>
+                    <path d="M60 75 Q56 69 58 63 Q60 57 62 63 Q64 69 60 75" fill="url(#flameGradient2)"/>
+                    <ellipse cx="60" cy="69" rx="2" ry="5" fill="#FFFACD"/>
+                </g>
+                <circle cx="48" cy="90" r="2" fill="#DAA520"/>
+                <circle cx="72" cy="90" r="2" fill="#DAA520"/>
+            </svg>
+            <div class="sparks-small absolute inset-0 pointer-events-none"></div>
+        </div>
+        
+        <div id="surroundingDiya3" class="surrounding-diya" style="top: 120px; left: 0px;">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+                <ellipse cx="60" cy="84" rx="42" ry="21" fill="#8B4513" stroke="#654321" stroke-width="1.5"/>
+                <path d="M24 84 Q60 72 96 84 Q90 96 60 99 Q30 96 24 84" fill="#CD853F" stroke="#8B4513" stroke-width="1.5"/>
+                <ellipse class="oil-surface" cx="60" cy="87" rx="33" ry="9" fill="#FFA500" opacity="0.7"/>
+                <rect x="58" y="78" width="3" height="9" fill="#2F4F4F" rx="1.5"/>
+                <g class="flame">
+                    <path d="M60 78 Q54 69 57 60 Q60 51 63 60 Q66 69 60 78" fill="url(#flameGradient1)" opacity="0.9"/>
+                    <path d="M60 75 Q56 69 58 63 Q60 57 62 63 Q64 69 60 75" fill="url(#flameGradient2)"/>
+                    <ellipse cx="60" cy="69" rx="2" ry="5" fill="#FFFACD"/>
+                </g>
+                <circle cx="48" cy="90" r="2" fill="#DAA520"/>
+                <circle cx="72" cy="90" r="2" fill="#DAA520"/>
+            </svg>
+            <div class="sparks-small absolute inset-0 pointer-events-none"></div>
+        </div>
+        
+        <div id="surroundingDiya4" class="surrounding-diya" style="top: 0px; left: -120px;">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+                <ellipse cx="60" cy="84" rx="42" ry="21" fill="#8B4513" stroke="#654321" stroke-width="1.5"/>
+                <path d="M24 84 Q60 72 96 84 Q90 96 60 99 Q30 96 24 84" fill="#CD853F" stroke="#8B4513" stroke-width="1.5"/>
+                <ellipse class="oil-surface" cx="60" cy="87" rx="33" ry="9" fill="#FFA500" opacity="0.7"/>
+                <rect x="58" y="78" width="3" height="9" fill="#2F4F4F" rx="1.5"/>
+                <g class="flame">
+                    <path d="M60 78 Q54 69 57 60 Q60 51 63 60 Q66 69 60 78" fill="url(#flameGradient1)" opacity="0.9"/>
+                    <path d="M60 75 Q56 69 58 63 Q60 57 62 63 Q64 69 60 75" fill="url(#flameGradient2)"/>
+                    <ellipse cx="60" cy="69" rx="2" ry="5" fill="#FFFACD"/>
+                </g>
+                <circle cx="48" cy="90" r="2" fill="#DAA520"/>
+                <circle cx="72" cy="90" r="2" fill="#DAA520"/>
+            </svg>
+            <div class="sparks-small absolute inset-0 pointer-events-none"></div>
+        </div>
+    </div>
+    
+    <!-- Audio element for background music -->
+    <audio id="backgroundMusic" loop>
+        <source src="Shubham Karoti Kalyanam (PenduJatt.Com.Se).mp3" type="audio/mpeg">
+        <!-- Fallback: You can replace with a local audio file -->
+    </audio>
+    
+    <!-- Instruction text -->
+    <div id="instruction" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-white text-lg font-light opacity-75 text-center">
+        <p class="animate-pulse">Touch anywhere to light the main diya</p>
+    </div>
+    
+    <!-- Secondary instruction -->
+    <div id="secondaryInstruction" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-white text-base font-light opacity-0 text-center">
+        <p class="animate-pulse">Click on each diya to light them all</p>
+    </div>
+    
+    <!-- Completion message -->
+    <div id="completionMessage" class="absolute top-10 left-1/2 transform -translate-x-1/2 text-yellow-300 text-2xl font-bold opacity-0 text-center">
+        <p class="animate-bounce">🪔 Welcome | स्वागत है | ಸ್ವಾಗತ 🪔</p>
+    </div>
+
+    <script>
+        // Initialize variables
+        let isMainLit = false;
+        let surroundingDiyasLit = [false, false, false, false];
+        let surroundingDiyasVisible = false;
+        let audio = document.getElementById('backgroundMusic');
+        let diyaContainer = document.getElementById('diyaContainer');
+        let flame = document.getElementById('flame');
+        let sparks = document.getElementById('sparks');
+        let instruction = document.getElementById('instruction');
+        let secondaryInstruction = document.getElementById('secondaryInstruction');
+        let completionMessage = document.getElementById('completionMessage');
+        
+        // Initialize GSAP timeline
+        gsap.set(diyaContainer, { opacity: 0, scale: 0.8 });
+        
+        // Page load animation
+        window.addEventListener('load', function() {
+            gsap.to(diyaContainer, {
+                opacity: 1,
+                scale: 1,
+                duration: 1.5,
+                ease: "back.out(1.7)"
+            });
+        });
+        
+        // Function to create floating sparks
+        function createSparks(container = sparks, size = 'normal') {
+            const sparkCount = size === 'normal' ? 8 : 5;
+            const sparkSize = size === 'normal' ? 3 : 2;
+            
+            for (let i = 0; i < sparkCount; i++) {
+                setTimeout(() => {
+                    const spark = document.createElement('div');
+                    spark.className = 'spark';
+                    spark.style.width = sparkSize + 'px';
+                    spark.style.height = sparkSize + 'px';
+                    spark.style.left = '50%';
+                    spark.style.top = size === 'normal' ? '45%' : '35%';
+                    container.appendChild(spark);
+                    
+                    const distance = size === 'normal' ? 50 : 30;
+                    gsap.to(spark, {
+                        x: gsap.utils.random(-distance, distance),
+                        y: gsap.utils.random(-distance*1.6, -distance*0.6),
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: "power2.out",
+                        onComplete: () => {
+                            gsap.to(spark, {
+                                opacity: 0,
+                                duration: 1,
+                                onComplete: () => spark.remove()
+                            });
+                        }
+                    });
+                }, i * 100);
+            }
+        }
+        
+        // Function to create glow rings
+        function createGlowRings(centerX = '50%', centerY = '50%', maxSize = 400) {
+            const glowRings = document.getElementById('glowRings');
+            for (let i = 0; i < 3; i++) {
+                const ring = document.createElement('div');
+                ring.className = 'glow-ring';
+                ring.style.left = centerX;
+                ring.style.top = centerY;
+                ring.style.transform = 'translate(-50%, -50%)';
+                ring.style.width = '60px';
+                ring.style.height = '60px';
+                glowRings.appendChild(ring);
+                
+                gsap.to(ring, {
+                    width: maxSize + 'px',
+                    height: maxSize + 'px',
+                    opacity: 0.6,
+                    duration: 2,
+                    delay: i * 0.3,
+                    ease: "power2.out",
+                    onComplete: () => {
+                        gsap.to(ring, {
+                            opacity: 0,
+                            duration: 1,
+                            onComplete: () => ring.remove()
+                        });
+                    }
+                });
+            }
+        }
+        
+        // Function to show surrounding diyas
+        function showSurroundingDiyas() {
+            if (surroundingDiyasVisible) return;
+            surroundingDiyasVisible = true;
+            
+            // Show secondary instruction
+            gsap.to(secondaryInstruction, { opacity: 1, duration: 1, delay: 1 });
+            
+            // Animate surrounding diyas to appear in circular formation
+            for (let i = 1; i <= 4; i++) {
+                const diya = document.getElementById(`surroundingDiya${i}`);
+                gsap.to(diya, {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.8,
+                    delay: i * 0.3,
+                    ease: "back.out(2)"
+                });
+            }
+        }
+        
+        // Function to light surrounding diya
+        function lightSurroundingDiya(index) {
+            if (surroundingDiyasLit[index - 1]) return;
+            
+            surroundingDiyasLit[index - 1] = true;
+            const diyaElement = document.getElementById(`surroundingDiya${index}`);
+            const flame = diyaElement.querySelector('.flame');
+            const oilSurface = diyaElement.querySelector('.oil-surface');
+            const sparksContainer = diyaElement.querySelector('.sparks-small');
+            
+            // Add glow effect
+            diyaElement.classList.add('small-diya-glow');
+            
+            // Light the flame
+            flame.classList.add('flame-visible', 'flame-animation');
+            gsap.fromTo(flame, 
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(2)" }
+            );
+            
+            // Animate oil surface
+            gsap.to(oilSurface, {
+                fill: '#FFD700',
+                opacity: 0.9,
+                duration: 0.8
+            });
+            
+            // Create sparks
+            createSparks(sparksContainer, 'small');
+            
+            // Create small glow rings
+            const rect = diyaElement.getBoundingClientRect();
+            const containerRect = document.getElementById('diyasContainer').getBoundingClientRect();
+            const relativeX = ((rect.left + rect.width/2 - containerRect.left) / containerRect.width * 100) + '%';
+            const relativeY = ((rect.top + rect.height/2 - containerRect.top) / containerRect.height * 100) + '%';
+            
+            createGlowRings(relativeX, relativeY, 200);
+            
+            // Check if all diyas are lit
+            checkCompletion();
+        }
+        
+        // Function to check if all diyas are lit
+        function checkCompletion() {
+            const allLit = isMainLit && surroundingDiyasLit.every(lit => lit);
+            if (allLit) {
+                // Hide secondary instruction
+                gsap.to(secondaryInstruction, { opacity: 0, duration: 0.5 });
+                
+                // Show completion message
+                gsap.to(completionMessage, { opacity: 1, duration: 1, delay: 0.5 });
+                
+                // Add special completion glow to all diyas
+                setTimeout(() => {
+                    diyaContainer.classList.add('completion-glow');
+                    for (let i = 1; i <= 4; i++) {
+                        document.getElementById(`surroundingDiya${i}`).classList.add('completion-glow');
+                    }
+                    
+                    // Create celebration effect
+                    createCelebrationEffect();
+                }, 1000);
+            }
+        }
+        
+        // Function to create celebration effect
+        function createCelebrationEffect() {
+            // Create multiple glow rings from all diyas
+            createGlowRings('50%', '50%', 600);
+            
+            // Create extra sparks from all diyas
+            for (let i = 1; i <= 4; i++) {
+                const diya = document.getElementById(`surroundingDiya${i}`);
+                const sparksContainer = diya.querySelector('.sparks-small');
+                setTimeout(() => createSparks(sparksContainer, 'small'), i * 200);
+            }
+            
+            createSparks(sparks, 'normal');
+        }
+        
+        // Function to light the main diya
+        function lightMainDiya() {
+            if (isMainLit) return;
+            
+            isMainLit = true;
+            
+            // Hide instruction
+            gsap.to(instruction, { opacity: 0, duration: 0.5 });
+            
+            // Add glow effect to diya container
+            diyaContainer.classList.add('diya-glow');
+            
+            // Show and animate flame
+            flame.classList.add('flame-visible', 'flame-animation');
+            gsap.fromTo(flame, 
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.8, ease: "back.out(2)" }
+            );
+            
+            // Animate oil surface to look more luminous
+            gsap.to('#oilSurface', {
+                fill: '#FFD700',
+                opacity: 0.9,
+                duration: 1
+            });
+            
+            // Create spark effects
+            createSparks();
+            
+            // Create glow rings
+            createGlowRings();
+            
+            // Try to play background music
+            audio.play().catch(e => {
+                console.log('Audio autoplay prevented by browser policy');
+            });
+            
+            // Show surrounding diyas after a delay
+            setTimeout(() => {
+                showSurroundingDiyas();
+            }, 1500);
+            
+            // Create continuous gentle sparks for main diya
+            setInterval(() => {
+                if (isMainLit && Math.random() > 0.7) {
+                    createSingleSpark(sparks);
+                }
+            }, 2000);
+        }
+        
+        // Function to create single spark for continuous effect
+        function createSingleSpark(container) {
+            const spark = document.createElement('div');
+            spark.className = 'spark';
+            spark.style.left = '50%';
+            spark.style.top = container === sparks ? '45%' : '35%';
+            spark.style.background = '#ffd700';
+            container.appendChild(spark);
+            
+            const distance = container === sparks ? 30 : 20;
+            gsap.to(spark, {
+                x: gsap.utils.random(-distance, distance),
+                y: gsap.utils.random(-distance*1.6, -distance*0.6),
+                opacity: 1,
+                duration: 0.8,
+                ease: "power2.out",
+                onComplete: () => {
+                    gsap.to(spark, {
+                        opacity: 0,
+                        duration: 1.5,
+                        onComplete: () => spark.remove()
+                    });
+                }
+            });
+        }
+        
+        // Add click/touch event listeners for main diya (background clicks)
+        document.addEventListener('click', function(e) {
+            // Check if click is on surrounding diya
+            for (let i = 1; i <= 4; i++) {
+                const surroundingDiya = document.getElementById(`surroundingDiya${i}`);
+                if (e.target.closest(`#surroundingDiya${i}`)) {
+                    if (surroundingDiyasVisible) {
+                        lightSurroundingDiya(i);
+                    }
+                    return;
+                }
+            }
+            
+            // Check if click is on main diya container
+            if (e.target.closest('#diyaContainer')) return;
+            
+            // Otherwise, light main diya
+            lightMainDiya();
+        });
+        
+        document.addEventListener('touchstart', function(e) {
+            // Check if touch is on surrounding diya
+            for (let i = 1; i <= 4; i++) {
+                if (e.target.closest(`#surroundingDiya${i}`)) {
+                    if (surroundingDiyasVisible) {
+                        e.preventDefault();
+                        lightSurroundingDiya(i);
+                    }
+                    return;
+                }
+            }
+            
+            // Check if touch is on main diya container
+            if (e.target.closest('#diyaContainer')) return;
+            
+            e.preventDefault();
+            lightMainDiya();
+        });
+        
+        // Create ambient particles
+        function createAmbientParticles() {
+            const particles = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.style.position = 'absolute';
+                particle.style.width = '2px';
+                particle.style.height = '2px';
+                particle.style.background = 'rgba(255, 255, 255, 0.1)';
+                particle.style.borderRadius = '50%';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particles.appendChild(particle);
+                
+                gsap.to(particle, {
+                    x: gsap.utils.random(-50, 50),
+                    y: gsap.utils.random(-50, 50),
+                    opacity: gsap.utils.random(0.1, 0.3),
+                    duration: gsap.utils.random(3, 8),
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "sine.inOut"
+                });
+            }
+        }
+        
+        // Initialize ambient particles
+        createAmbientParticles();
+        
+        // Handle audio play on first user interaction (for mobile compatibility)
+        let audioInitialized = false;
+        function initializeAudio() {
+            if (!audioInitialized) {
+                audio.play().catch(e => console.log('Audio play failed'));
+                audioInitialized = true;
+            }
+        }
+        
+        document.addEventListener('click', initializeAudio);
+        document.addEventListener('touchstart', initializeAudio);
+        
+        // Add continuous sparks for lit surrounding diyas
+        setInterval(() => {
+            for (let i = 1; i <= 4; i++) {
+                if (surroundingDiyasLit[i-1] && Math.random() > 0.8) {
+                    const diya = document.getElementById(`surroundingDiya${i}`);
+                    const sparksContainer = diya.querySelector('.sparks-small');
+                    createSingleSpark(sparksContainer);
+                }
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

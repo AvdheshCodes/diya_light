@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Diya</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: black;
+    }
+    .diya {
+      width: 200px;
+      height: auto;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Diya Image -->
+  <img id="diya" src="diya-3 - Copy.png" alt="Diya" class="diya">
+
+  <!-- Background Music -->
+  <audio id="bg-music" autoplay loop>
+    <source src="music.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
+  <script>
+    const diya = document.getElementById("diya");
+    let lit = false;
+
+    // When background (anywhere) is clicked
+    document.body.addEventListener("click", () => {
+      lit = !lit;
+      diya.src = lit ? "diya-on.png" : "diya-off.png";
+    });
+  </script>
+
+</body>
+</html>
